@@ -1,0 +1,130 @@
+
+The Following Procedure can be used for Fully Purging OMSagent components over Linux Machines and Install it again (Azure OMS Agent/Extension).
+
+ 
+Deleting OMS Extension :
+ 
+Azure Portal ->
+              -> Select Virtual Machine and Click on (NM-NAME) VM
+                           -> Click on Extensions
+                                         -> Click on the (...) 3 dots on the right side of the LinuxDiagnostic Extension
+                                                       -> uninstall/delete
+                                         -> Click on the (...) 3 dots on the right side of the DependencyAgentLinux Extension
+                                                       -> uninstall/delete
+                                         -> Click on the (...) 3 dots on the right side of the OmsAgentForLinux Extension
+                                                       -> uninstall/delete
+ 
+ 
+Remove Old OMS Configuration from command line :
+ 
+	# sudo su -
+	# /opt/microsoft/omsagent/bin/omsadmin.sh -l
+	# /opt/microsoft/omsagent/bin/omsadmin.sh -X
+	# mkdir /var/lib/waagent/old-oms ; mv /var/lib/waagent/Microsoft.EnterpriseCloud.Monitoring*  var/lib/waagent/old-oms/
+
+	
+Upgrade WAAgent and Restart Related Service :
+
+	RHEL/CentOS :
+
+		# yum update -y WALinuxAgent
+		# service waagent restart 
+	 
+	Ubuntu/Debian :
+
+		# apt-get upgrade walinuxagent
+		# systemctl restart walinuxagent 
+ 
+ 
+ 
+Saving old configuration of oms workspace Then deleting it :
+ 
+	# opt/microsoft/omsagent/bin/omsadmin.sh -l > /root/oms-script/old-oms-workspace.txt
+	# /opt/microsoft/omsagent/bin/omsadmin.sh -X
+	# [ -d /root/msoms ] || mkdir /root/msoms
+	# rm -rf /root/msoms/*
+	# cd /root/msoms
+	# wget https://raw.githubusercontent.com/Microsoft/OMS-Agent-for-Linux/master/installer/scripts/onboard_agent.sh
+	# sudo sh onboard_agent.sh --purge
+ 
+ 
+Ensure that all Packages are removed : 
+	
+	RHEL/CentOS :
+
+		# yum remove -y scx omi omsagent omsconfig auoms 
+
+	Ubuntu/Debian :
+
+		# apt-get remove scx omi omsagent omsconfig auoms
+	
+ 
+Ensure that the following directories should be not there :
+ 
+	# [ -d /etc/opt/microsoft ] && mv /etc/opt/microsoft /etc/opt/microsoft.old
+	# [ -d /var/opt/microsoft ] && mv /var/opt/microsoft /var/opt/microsoft.old
+	# [ -d /etc/opt/omi ] && mv /etc/opt/omi /etc/opt/omi.old
+	# [ -d /var/opt/omi ] && mv /var/opt/omi /var/opt/omi.old
+ 
+ 
+Ensure that users/Groups are deleted :
+ 
+	# id -u omsagent && userdel -r omsagent
+	# id -u omi && userdel -r omi
+	# id -u nxautomation && userdel -r nxautomation
+	# id -g omiusers && groupdel omiusers
+	# id -g omsagent && groupdel omsagent
+	# id -g nxautomation && groupdel nxautomation
+	# id -g omi && groupdel omi
+	
+Check if there is any process that still running :
+	#  ps -ef | grep -i "omi\|oms\|nxautom" | awk '$8!="grep" {print $0}' | awk '{print $2}' | sed 's/^/kill -9 /g' >> /root/msoms/kill-oms-processes-script.sh
+	# chmod +x /root/msoms/kill-oms-processes-script.sh
+	# sudo sh /root/msoms/kill-oms-processes-script.sh
+ 
+Redo the Purge Process again :
+ 
+	# cd /root/msoms
+	# sudo sh onboard_agent.sh --purge
+ 
+ 
+ 
+Installation from command Line :
+ 
+Azure Portal ->
+              -> Log Analytics workspaces
+                           -> Choose workspace (WorkSpace-Name)
+                                         -> Advanced Settings
+                                                       -> Linux Servers
+                                                                     -> Copy Line starts with wget.
+			 
+	# [ -d /root/latest-oms ] || mkdir /root/latest-oms
+	# cd /root/latest-oms/
+	# <Paste Copied Line that starts with wget>
+ 
+ 
+ 
+Connect the machine again from the portal :
+ 
+Azure Portal ->
+              -> Log Analytics workspaces
+                           -> Choose workspace (WorkSpace-Name)
+                                         -> Virtual Machines
+                                                       -> Search for (NM-NAME)
+                                                                     -> Click on it; then click on Connect.
+ 
+ 
+ 
+Restart All Related Services :
+
+	RHEL/CentOS : 
+
+		# service waagent start ; sudo /opt/microsoft/omsagent/bin/service_control enable  ; sudo /opt/microsoft/omsagent/bin/service_control start  ; sudo scxadmin -start all
+		# /opt/microsoft/omsagent/bin/omsadmin.sh -l  ; sudo scxadmin -status all ; service waagent status
+		
+	Ubuntu/Debian :
+
+		# systemctl start walinuxagent ; sudo /opt/microsoft/omsagent/bin/service_control enable  ; sudo /opt/microsoft/omsagent/bin/service_control start  ; sudo scxadmin -start all
+		# /opt/microsoft/omsagent/bin/omsadmin.sh -l  ; sudo scxadmin -status all ; systemctl status walinuxagent
+
+
